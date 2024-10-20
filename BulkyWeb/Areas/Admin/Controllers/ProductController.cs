@@ -9,28 +9,26 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 namespace BulkyWeb.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = SD.Role_Admin)]
+    //[Authorize(Roles = SD.Role_Admin)]
     public class ProductController : Controller
     {
-        private readonly IProductRepository _productRepo;
-        private readonly ICategoryRepository _categoryRepo;
-        private readonly IWebHostEnvironment _webHostEnvironment;   
-        public ProductController(IProductRepository db, ICategoryRepository dbCategory, IWebHostEnvironment webHostEnvironment)
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IWebHostEnvironment _webHostEnvironment;
+        public ProductController(IUnitOfWork unitOfWork, IWebHostEnvironment webHostEnvironment)
         {
-            _productRepo = db;
-            _categoryRepo = dbCategory;
+            _unitOfWork = unitOfWork;
             _webHostEnvironment = webHostEnvironment;
         }
         public IActionResult Index()
         {
-            List<Product> objProductList = _productRepo.GetAll(includeProperties: "Category").ToList();
+            List<Product> objProductList = _unitOfWork.Product.GetAll(includeProperties: "Category").ToList();
             return View(objProductList);
         }
         public IActionResult Upsert(int? id)
         {
             ProductViewModel productViewModel = new()
             {
-                CategoryList = _categoryRepo.GetAll().Select(u => new SelectListItem
+                CategoryList = _unitOfWork.Category.GetAll().Select(u => new SelectListItem
 				{
 					Text = u.Name,
 					Value = u.Id.ToString()
@@ -45,7 +43,7 @@ namespace BulkyWeb.Areas.Admin.Controllers
             else
             {
                 //Update
-                productViewModel.Product = _productRepo.Get(u => u.Id == id);
+                productViewModel.Product = _unitOfWork.Product.Get(u => u.Id == id);
 				return View(productViewModel);
 			}
             
@@ -82,20 +80,20 @@ namespace BulkyWeb.Areas.Admin.Controllers
                 }
                 if (productViewModel.Product.Id == 0)
                 {
-                    _productRepo.Add(productViewModel.Product);
+                    _unitOfWork.Product.Add(productViewModel.Product);
 
                 }
                 else
                 {
-                    _productRepo.Update(productViewModel.Product);
+                    _unitOfWork.Product.Update(productViewModel.Product);
                 }
-                _productRepo.Save();
+                _unitOfWork.Save();
                 TempData["success"] = "The product created succesfully";
                 return RedirectToAction("Index");
             }
             else
             {
-				productViewModel.CategoryList = _categoryRepo.GetAll().Select(u => new SelectListItem
+				productViewModel.CategoryList = _unitOfWork.Company.GetAll().Select(u => new SelectListItem
                 {
                     Text = u.Name,
                     Value = u.Id.ToString()
@@ -106,11 +104,11 @@ namespace BulkyWeb.Areas.Admin.Controllers
         }
         public IActionResult DeletePost(int? id)
         {
-            Product? obj = _productRepo.Get(u => u.Id == id);
+            Product? obj = _unitOfWork.Product.Get(u => u.Id == id);
             if (obj == null)
             { return NotFound(); }
-            _productRepo.Remove(obj);
-            _productRepo.Save();
+            _unitOfWork.Product.Remove(obj);
+            _unitOfWork.Save();
             TempData["success"] = "The deleted successfully";
             return RedirectToAction("Index");
         }
@@ -119,13 +117,13 @@ namespace BulkyWeb.Areas.Admin.Controllers
         [HttpGet]
         public IActionResult GetAll() 
         {
-            List<Product> objProductList = _productRepo.GetAll(includeProperties: "Category").ToList();
+            List<Product> objProductList = _unitOfWork.Product.GetAll(includeProperties: "Category").ToList();
             return Json(new { data = objProductList });
         }
         [HttpDelete]
 		public IActionResult Delete(int? id)
 		{
-            var productToBeDeleted = _productRepo.Get(u => u.Id == id);
+            var productToBeDeleted = _unitOfWork.Product.Get(u => u.Id == id);
             if (productToBeDeleted == null)
             {
                 return Json(new { success = false, message = "Error while deleting" });
@@ -139,8 +137,8 @@ namespace BulkyWeb.Areas.Admin.Controllers
                     System.IO.File.Delete(oldImagePath);
                 }
             }
-            _productRepo.Remove(productToBeDeleted);
-            _productRepo.Save();
+            _unitOfWork.Product.Remove(productToBeDeleted);
+            _unitOfWork.Save();
 
 			return Json(new { success = true, message = "Delete Succesful" });
 		}
